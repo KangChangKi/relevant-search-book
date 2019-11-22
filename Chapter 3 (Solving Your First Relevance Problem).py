@@ -46,16 +46,18 @@ def simplerExplain(explainJson, depth=0):
 
 movieIds = [];
 numMoviesToGrab = 10000
-numPages = numMoviesToGrab / 20
+numPages = numMoviesToGrab // 20
 
 for page in range(1, numPages + 1):
     httpResp = tmdb_api.get('https://api.themoviedb.org/3/movie/top_rated', params={'page': page})  #(1)
     jsonResponse = json.loads(httpResp.text) #(2)
+    if 'results' not in jsonResponse:
+        continue
     movies = jsonResponse['results']
     for movie in movies:
         if (movie['id'] not in [9549]):
             movieIds.append(movie['id'])
-print len(movieIds)
+print(len(movieIds))
 
 
 # Out[3]:
