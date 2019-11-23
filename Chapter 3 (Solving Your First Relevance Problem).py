@@ -109,21 +109,24 @@ print(resp.status_code)
 # distributed IDF on our small collection
 # See also "Relavance is Broken!"
 # http://www.elastic.co/guide/en/elasticsearch/guide/current/relevance-is-broken.html
+headers = {"Content-Type": "application/json"}
 settings = {
     "settings": {"number_of_shards": 1}
 }
-resp = requests.put("http://localhost:9200/tmdb", data=json.dumps(settings))
+resp = requests.put("http://localhost:9200/tmdb", headers=headers, data=json.dumps(settings))
 print(resp.status_code)
 
 # Bulk index title & overview to the movie endpoint
 print("Indexing %i movies" % len(movieDict.keys()))
 bulkMovies = ""
-for id, movie in movieDict.iteritems():
+for k, movie in movieDict.items():
+    if 'id' not in movie:
+        continue
     addCmd = {"index": {"_index": "tmdb", "_type": "movie", "_id": movie["id"]}}
     esDoc  = {"title": movie['title'], 'overview': movie['overview'], 'tagline': movie['tagline']}
     bulkMovies += json.dumps(addCmd) + "\n" + json.dumps(esDoc) + "\n"
-requests.post("http://localhost:9200/_bulk", data=bulkMovies)
-
+resp = requests.post("http://localhost:9200/_bulk", headers=headers, data=bulkMovies)
+print(resp.status_code)
 
 # Out[7]:
 
@@ -150,11 +153,11 @@ search = {
     'explain': True
 }
 
-httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', data=json.dumps(search))
+httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', headers=headers, data=json.dumps(search))
 searchHits = json.loads(httpResp.text)['hits']
 print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
 for idx, hit in enumerate(searchHits['hits']):
-        print "%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview']))
+        print("%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview'])))
 
 
 # Out[9]:
@@ -274,9 +277,8 @@ search = {
         }
     }
 }
-httpResp = requests.get('http://localhost:9200' + 
-			    '/tmdb/movie/_validate/query?explain',
-			     data=json.dumps(search))
+httpResp = requests.get('http://localhost:9200' + '/tmdb/movie/_validate/query?explain',
+                headers=headers, data=json.dumps(search))
 print(json.loads(httpResp.text))
 
 
@@ -297,7 +299,7 @@ print(json.loads(httpResp.text))
 
 #resp = requests.get(elasticSearchUrl + "/tmdb/_mapping/movie/field/title?format=yaml'
 resp = requests.get('http://localhost:9200/tmdb/_analyze?field=title&format=yaml', 
-                    data="Fire with Fire")
+                    headers=headers, data="Fire with Fire")
 print(resp.text)
 
 
