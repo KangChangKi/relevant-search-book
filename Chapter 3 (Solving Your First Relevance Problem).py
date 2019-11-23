@@ -169,14 +169,17 @@ query = {
     'explain': True
 }
 
-def search(query):
+def search(query, print=True):
     headers = {"Content-Type": "application/json"}
     httpResp = requests.get('http://localhost:9200/tmdb/_search', headers=headers, data=json.dumps(query))
-    searchHits = json.loads(httpResp.text)['hits']
-    print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
-    for idx, hit in enumerate(searchHits['hits']):
-            print("%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview'])))
+    
+    if print:
+        searchHits = json.loads(httpResp.text)['hits']
+        print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
+        for idx, hit in enumerate(searchHits['hits']):
+                print("%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview'])))
 
+    return httpResp
 
 # Out[9]:
 
@@ -524,8 +527,8 @@ search(query)
 
 # In[12]:
 
-search['explain'] = True
-httpResp = requests.get(elasticSearchUrl + '/tmdb/movie/_search', data=json.dumps(search))
+query['explain'] = True
+httpResp = search(query, print=False)
 jsonResp = json.loads(httpResp.text)
 print(json.dumps(jsonResp['hits']['hits'][0]['_explanation'], indent=True))
 print("Explain for %s" % jsonResp['hits']['hits'][0]['_source']['title'])
