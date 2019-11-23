@@ -48,17 +48,24 @@ movieIds = [];
 numMoviesToGrab = 10000
 numPages = numMoviesToGrab // 20
 
-for page in range(1, numPages + 1):
-    httpResp = tmdb_api.get('https://api.themoviedb.org/3/movie/top_rated', params={'page': page})  #(1)
-    jsonResponse = json.loads(httpResp.text) #(2)
-    if 'results' not in jsonResponse:
-        continue
-    movies = jsonResponse['results']
-    for movie in movies:
-        if (movie['id'] not in [9549]):
-            movieIds.append(movie['id'])
-print(len(movieIds))
+import pickle
+import os.path
 
+if os.path.isfile('movieIds.dat'):
+    with open('movieIds.dat', 'rb') as file:
+        movieIds = pickle.load(file)
+else:
+    for page in range(1, numPages + 1):
+        httpResp = tmdb_api.get('https://api.themoviedb.org/3/movie/top_rated', params={'page': page})  #(1)
+        jsonResponse = json.loads(httpResp.text) #(2)
+        if 'results' not in jsonResponse:
+            continue
+        movies = jsonResponse['results']
+        for movie in movies:
+            if (movie['id'] not in [9549]):
+                movieIds.append(movie['id'])
+
+print(len(movieIds))
 
 # Out[3]:
 
@@ -68,17 +75,34 @@ print(len(movieIds))
 # In[4]:
 
 movieDict = {}
-for movieId in movieIds:
-    httpResp = tmdb_api.get("https://api.themoviedb.org/3/movie/%s" % movieId)
-    movie = json.loads(httpResp.text)
-    movieDict[movieId] = movie
 
+if os.path.isfile('movieDict.dat'):
+    with open('movieDict.dat', 'rb') as file:
+        movieDict = pickle.load(file)
+else:
+    for i, movieId in enumerate(movieIds):
+        httpResp = tmdb_api.get("https://api.themoviedb.org/3/movie/%s" % movieId)
+        movie = json.loads(httpResp.text)
+        movieDict[movieId] = movie
+        print(str(i) + "/" + str(len(movieIds)))
+
+print(len(movieDict))
+
+# Leave local data files for saving time to build the data from scratch
+
+if not os.path.isfile('movieIds.dat'):
+    with open('movieIds.dat', 'wb') as file:
+        pickle.dump(movieIds, file)
+
+if not os.path.isfile('movieDict.dat'):
+    with open('movieDict.dat', 'wb') as file:
+        pickle.dump(movieDict, file)
 
 # In[7]:
 
 # Destroy any existing index (equiv to SQL "drop table")
 resp = requests.delete("http://localhost:9200/tmdb")
-print resp.status_code
+print(resp.status_code)
 
 # Create the index with explicit settings
 # We need to explicitely set number of shards to 1 to eliminate the impact of 
@@ -89,10 +113,10 @@ settings = {
     "settings": {"number_of_shards": 1}
 }
 resp = requests.put("http://localhost:9200/tmdb", data=json.dumps(settings))
-print resp.status_code
+print(resp.status_code)
 
 # Bulk index title & overview to the movie endpoint
-print "Indexing %i movies" % len(movieDict.keys())
+print("Indexing %i movies" % len(movieDict.keys()))
 bulkMovies = ""
 for id, movie in movieDict.iteritems():
     addCmd = {"index": {"_index": "tmdb", "_type": "movie", "_id": movie["id"]}}
@@ -128,7 +152,7 @@ search = {
 
 httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', data=json.dumps(search))
 searchHits = json.loads(httpResp.text)['hits']
-print "Num\tRelevance Score\t\tMovie Title\t\tOverview"
+print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
 for idx, hit in enumerate(searchHits['hits']):
         print "%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview']))
 
@@ -253,7 +277,7 @@ search = {
 httpResp = requests.get('http://localhost:9200' + 
 			    '/tmdb/movie/_validate/query?explain',
 			     data=json.dumps(search))
-print json.loads(httpResp.text)
+print(json.loads(httpResp.text))
 
 
 # Out[10]:
@@ -274,7 +298,7 @@ print json.loads(httpResp.text)
 #resp = requests.get(elasticSearchUrl + "/tmdb/_mapping/movie/field/title?format=yaml'
 resp = requests.get('http://localhost:9200/tmdb/_analyze?field=title&format=yaml', 
                     data="Fire with Fire")
-print resp.text
+print(resp.text)
 
 
 # Out[15]:
@@ -331,18 +355,18 @@ sleep(1)
 
 # Inspecting the mappings
 resp = requests.get('http://localhost:9200/tmdb/_mappings?format=yaml')
-print resp.text
+print(resp.text)
 
 # Reanalyze the string
 resp = requests.get('http://localhost:9200/tmdb/_analyze?field=title&format=yaml', 
                     data="Fire with Fire")
-print resp.text
+print(resp.text)
 
 
 # Reindex
 resp = requests.post('http://localhost:9200/_bulk', data=bulkMovies)
 resp = requests.get('http://localhost:9200/tmdb/_refresh')
-print resp.text
+print(resp.text)
 
 sleep(1)
 
@@ -360,7 +384,7 @@ search = {
 httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', data=json.dumps(search))
 searchHits = json.loads(httpResp.text)['hits']
 
-print "Num\tRelevance Score\t\tMovie Title\t\tOverview"
+print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
 for idx, hit in enumerate(searchHits['hits']):
         print "%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview']))
 
@@ -485,17 +509,17 @@ for idx, hit in enumerate(searchHits['hits']):
 search['explain'] = True
 httpResp = requests.get(elasticSearchUrl + '/tmdb/movie/_search', data=json.dumps(search))
 jsonResp = json.loads(httpResp.text)
-print json.dumps(jsonResp['hits']['hits'][0]['_explanation'], indent=True)
-print "Explain for %s" % jsonResp['hits']['hits'][0]['_source']['title']
-print simplerExplain(jsonResp['hits']['hits'][0]['_explanation'])
-print "Explain for %s" % jsonResp['hits']['hits'][1]['_source']['title']
-print simplerExplain(jsonResp['hits']['hits'][1]['_explanation'])
-print "Explain for %s" % jsonResp['hits']['hits'][2]['_source']['title']
-print simplerExplain(jsonResp['hits']['hits'][2]['_explanation'])
-print "Explain for %s" % jsonResp['hits']['hits'][3]['_source']['title']
-print simplerExplain(jsonResp['hits']['hits'][3]['_explanation'])
-print "Explain for %s" % jsonResp['hits']['hits'][10]['_source']['title']
-print simplerExplain(jsonResp['hits']['hits'][10]['_explanation'])
+print(json.dumps(jsonResp['hits']['hits'][0]['_explanation'], indent=True))
+print("Explain for %s" % jsonResp['hits']['hits'][0]['_source']['title'])
+print(simplerExplain(jsonResp['hits']['hits'][0]['_explanation']))
+print("Explain for %s" % jsonResp['hits']['hits'][1]['_source']['title'])
+print(simplerExplain(jsonResp['hits']['hits'][1]['_explanation']))
+print("Explain for %s" % jsonResp['hits']['hits'][2]['_source']['title'])
+print(simplerExplain(jsonResp['hits']['hits'][2]['_explanation']))
+print("Explain for %s" % jsonResp['hits']['hits'][3]['_source']['title'])
+print(simplerExplain(jsonResp['hits']['hits'][3]['_explanation']))
+print("Explain for %s" % jsonResp['hits']['hits'][10]['_source']['title'])
+print(simplerExplain(jsonResp['hits']['hits'][10]['_explanation']))
 
 
 # Out[12]:
@@ -796,7 +820,7 @@ search = {
 httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', data=json.dumps(search))
 searchHits = json.loads(httpResp.text)['hits']
 
-print "Num\tRelevance Score\t\tMovie Title\t\tOverview"
+print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
 for idx, hit in enumerate(searchHits['hits']):
         print "%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview']))
 
