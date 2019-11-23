@@ -101,23 +101,32 @@ if not os.path.isfile('movieDict.dat'):
 # In[7]:
 
 # Destroy any existing index (equiv to SQL "drop table")
-resp = requests.delete("http://localhost:9200/tmdb")
-print(resp.status_code)
+def delete_index(index_name):
+    resp = requests.delete("http://localhost:9200/" + index_name)
+    print(resp.status_code)
 
+delete_index('tmdb')
+    
 # Create the index with explicit settings
 # We need to explicitely set number of shards to 1 to eliminate the impact of 
 # distributed IDF on our small collection
 # See also "Relavance is Broken!"
 # http://www.elastic.co/guide/en/elasticsearch/guide/current/relevance-is-broken.html
-headers = {"Content-Type": "application/json"}
+
 settings = {
     "settings": {"number_of_shards": 1}
 }
-resp = requests.put("http://localhost:9200/tmdb", headers=headers, data=json.dumps(settings))
-print(resp.status_code)
+
+def create_index(index_name, settings):
+    headers = {"Content-Type": "application/json"}
+    resp = requests.put("http://localhost:9200/" + index_name, headers=headers, data=json.dumps(settings))
+    print(resp.status_code)
+
+create_index('tmdb', settings)
 
 # Bulk index title & overview to the movie endpoint
 print("Indexing %i movies" % len(movieDict.keys()))
+
 bulkMovies = ""
 for k, movie in movieDict.items():
     if 'id' not in movie:
@@ -125,9 +134,14 @@ for k, movie in movieDict.items():
     addCmd = {"index": {"_index": "tmdb", "_type": "movie", "_id": movie["id"]}}
     esDoc  = {"title": movie['title'], 'overview': movie['overview'], 'tagline': movie['tagline']}
     bulkMovies += json.dumps(addCmd) + "\n" + json.dumps(esDoc) + "\n"
-resp = requests.post("http://localhost:9200/_bulk", headers=headers, data=bulkMovies)
-print(resp.status_code)
 
+def fill_index_bulk(bulkData):
+    headers = {"Content-Type": "application/json"}
+    resp = requests.post("http://localhost:9200/_bulk", headers=headers, data=bulkData)
+    print(resp.status_code)
+
+fill_index_bulk(bulkMovies)
+    
 # Out[7]:
 
 #     200
@@ -142,7 +156,7 @@ print(resp.status_code)
 # In[9]:
 
 usersSearch = 'basketball with cartoon aliens'
-search = {
+query = {
     'query': {
         'multi_match': { 
             'query': usersSearch,  #User's query
@@ -153,11 +167,13 @@ search = {
     'explain': True
 }
 
-httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', headers=headers, data=json.dumps(search))
-searchHits = json.loads(httpResp.text)['hits']
-print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
-for idx, hit in enumerate(searchHits['hits']):
-        print("%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview'])))
+def search(query):
+    headers = {"Content-Type": "application/json"}
+    httpResp = requests.get('http://localhost:9200/tmdb/_search', headers=headers, data=json.dumps(query))
+    searchHits = json.loads(httpResp.text)['hits']
+    print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
+    for idx, hit in enumerate(searchHits['hits']):
+            print("%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview'])))
 
 
 # Out[9]:
@@ -269,7 +285,9 @@ for idx, hit in enumerate(searchHits['hits']):
 
 # In[10]:
 
-search = {
+from pprint import pprint
+
+query = {
    'query': {
         'multi_match': { 
             'query': usersSearch,  #User's query
@@ -277,10 +295,14 @@ search = {
         }
     }
 }
-httpResp = requests.get('http://localhost:9200' + '/tmdb/movie/_validate/query?explain',
-                headers=headers, data=json.dumps(search))
-print(json.loads(httpResp.text))
 
+def explain(query):
+    headers = {"Content-Type": "application/json"}
+    httpResp = requests.get('http://localhost:9200' + '/tmdb/_validate/query?explain',
+                    headers=headers, data=json.dumps(query))
+    pprint(json.loads(httpResp.text))
+
+explain(query)
 
 # Out[10]:
 
