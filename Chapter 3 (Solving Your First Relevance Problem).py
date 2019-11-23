@@ -9,6 +9,7 @@ import os
 import pickle
 import os.path
 from pprint import pprint
+from time import sleep
 
 # you'll need to have an API key for TMDB
 # to run these examples,
@@ -121,6 +122,7 @@ def create_index(index_name, settings):
     headers = {"Content-Type": "application/json"}
     resp = requests.put(f"http://localhost:9200/{index_name}", headers=headers, data=json.dumps(settings))
     print(resp.status_code)
+    print(resp.text)
 
 create_index('tmdb', settings)
 
@@ -131,7 +133,7 @@ bulkMovies = ""
 for k, movie in movieDict.items():
     if 'id' not in movie:
         continue
-    addCmd = {"index": {"_index": "tmdb", "_type": "movie", "_id": movie["id"]}}
+    addCmd = {"index": {"_index": "tmdb", "_id": movie["id"]}}
     esDoc  = {"title": movie['title'], 'overview': movie['overview'], 'tagline': movie['tagline']}
     bulkMovies += json.dumps(addCmd) + "\n" + json.dumps(esDoc) + "\n"
 
@@ -348,35 +350,29 @@ analyze('tmdb', query)
 
 # In[18]:
 
-from time import sleep
-
 # DELETE AND RECREATE THE INDEX WITH ENGLISH ANALYZERS
-requests.delete('http://localhost:9200/tmdb')
+delete_index('tmdb')
 
 settings = {
     'settings': {
         "number_of_shards": 1,
+        "number_of_replicas": 1
     },
     'mappings': {
-            'movie': {
-                'properties': {
-                    'title': {
-                        'type': 'string',
-                        'analyzer': 'english'
-                    },
-                    'overview': {
-                        'type': 'string',
-                        'analyzer': 'english'
-                    }
-                }
-                
+        'properties': {
+            'title': {
+                'type': 'text',
+                'analyzer': 'english'
+            },
+            'overview': {
+                'type': 'text',
+                'analyzer': 'english'
             }
-       }
-    
+        }
+    }
 }
 
-resp = requests.put('http://localhost:9200/tmdb/', data=json.dumps(settings))
-print resp.text
+create_index('tmdb', settings)
 sleep(1)
 
 # Inspecting the mappings
@@ -384,20 +380,21 @@ resp = requests.get('http://localhost:9200/tmdb/_mappings?format=yaml')
 print(resp.text)
 
 # Reanalyze the string
-resp = requests.get('http://localhost:9200/tmdb/_analyze?field=title&format=yaml', 
-                    data="Fire with Fire")
-print(resp.text)
 
+query = {"field":"title", "text": "Fire with Fire"}
+analyze('tmdb', query)
 
 # Reindex
-resp = requests.post('http://localhost:9200/_bulk', data=bulkMovies)
+
+fill_index_bulk(bulkMovies)
+
 resp = requests.get('http://localhost:9200/tmdb/_refresh')
 print(resp.text)
-
 sleep(1)
 
 # Search again
-search = {
+usersSearch = 'Fire with Fire'
+query = {
     'query': {
         'multi_match': { 
             'query': usersSearch,  #User's query
@@ -407,13 +404,8 @@ search = {
     'size': '100',
     'explain': True
 }
-httpResp = requests.get('http://localhost:9200/tmdb/movie/_search', data=json.dumps(search))
-searchHits = json.loads(httpResp.text)['hits']
 
-print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
-for idx, hit in enumerate(searchHits['hits']):
-        print "%s\t%s\t\t%s\t\t%s" % (idx + 1, hit['_score'], hit['_source']['title'], len(hit['_source']['overview']))
-
+search(query)
 
 # Out[18]:
 
