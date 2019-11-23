@@ -6,6 +6,9 @@
 import requests
 import json
 import os
+import pickle
+import os.path
+from pprint import pprint
 
 # you'll need to have an API key for TMDB
 # to run these examples,
@@ -48,9 +51,6 @@ movieIds = [];
 numMoviesToGrab = 10000
 numPages = numMoviesToGrab // 20
 
-import pickle
-import os.path
-
 if os.path.isfile('movieIds.dat'):
     with open('movieIds.dat', 'rb') as file:
         movieIds = pickle.load(file)
@@ -81,10 +81,10 @@ if os.path.isfile('movieDict.dat'):
         movieDict = pickle.load(file)
 else:
     for i, movieId in enumerate(movieIds):
-        httpResp = tmdb_api.get("https://api.themoviedb.org/3/movie/%s" % movieId)
+        httpResp = tmdb_api.get(f"https://api.themoviedb.org/3/movie/{movieId}")
         movie = json.loads(httpResp.text)
         movieDict[movieId] = movie
-        print(str(i) + "/" + str(len(movieIds)))
+        print(f"{i}/{len(movieIds)}")
 
 print(len(movieDict))
 
@@ -102,7 +102,7 @@ if not os.path.isfile('movieDict.dat'):
 
 # Destroy any existing index (equiv to SQL "drop table")
 def delete_index(index_name):
-    resp = requests.delete("http://localhost:9200/" + index_name)
+    resp = requests.delete(f"http://localhost:9200/{index_name}")
     print(resp.status_code)
 
 delete_index('tmdb')
@@ -119,13 +119,13 @@ settings = {
 
 def create_index(index_name, settings):
     headers = {"Content-Type": "application/json"}
-    resp = requests.put("http://localhost:9200/" + index_name, headers=headers, data=json.dumps(settings))
+    resp = requests.put(f"http://localhost:9200/{index_name}", headers=headers, data=json.dumps(settings))
     print(resp.status_code)
 
 create_index('tmdb', settings)
 
 # Bulk index title & overview to the movie endpoint
-print("Indexing %i movies" % len(movieDict.keys()))
+print(f"Indexing {len(movieDict)} movies")
 
 bulkMovies = ""
 for k, movie in movieDict.items():
@@ -285,8 +285,6 @@ def search(query):
 
 # In[10]:
 
-from pprint import pprint
-
 query = {
    'query': {
         'multi_match': { 
@@ -298,7 +296,7 @@ query = {
 
 def explain(query):
     headers = {"Content-Type": "application/json"}
-    httpResp = requests.get('http://localhost:9200' + '/tmdb/_validate/query?explain',
+    httpResp = requests.get('http://localhost:9200/tmdb/_validate/query?explain',
                     headers=headers, data=json.dumps(query))
     pprint(json.loads(httpResp.text))
 
@@ -318,12 +316,16 @@ explain(query)
 # (2) What did the search engine attempt to match exactly?
 
 # Explain of what's happening when we construct these terms
+# https://www.elastic.co/guide/en/elasticsearch/reference/current/indices-analyze.html
 
-#resp = requests.get(elasticSearchUrl + "/tmdb/_mapping/movie/field/title?format=yaml'
-resp = requests.get('http://localhost:9200/tmdb/_analyze?field=title&format=yaml', 
-                    headers=headers, data="Fire with Fire")
-print(resp.text)
+query = {"field":"title", "text": "Fire with Fire"}
 
+def analyze(index_name, query):
+    resp = requests.get(f'http://localhost:9200/{index_name}/_analyze?format=yaml', 
+                        headers=headers, data=json.dumps(query))
+    print(resp.text)
+
+analyze('tmdb', query)
 
 # Out[15]:
 
