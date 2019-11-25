@@ -109,7 +109,7 @@ query = {
     'explain': True
 }
 
-search(query)
+search('tmdb', query)
 
 ## 2.3.1 Query Validation API
 
@@ -122,7 +122,7 @@ query = {
     }
 }
 
-explain(query)
+explain('tmdb', query)
 
 #     {u'valid': True, u'explanations': [{u'index': u'tmdb', u'explanation': u'filtered((((title:basketball title:with title:cartoon title:aliens)^10.0) | (overview:basketball overview:with overview:cartoon overview:aliens)))->cache(_type:movie)', u'valid': True}], u'_shards': {u'successful': 1, u'failed': 0, u'total': 1}}
 # 
@@ -198,12 +198,12 @@ query = {
     'explain': True
 }
 
-search(query)
+search('tmdb', query)
 
 ## 2.4.1	Decomposing Relevance Score With Lucene’s Explain
 
 query['explain'] = True
-httpResp = search(query, _print=False)
+httpResp = search('tmdb', query, _print=False)
 jsonResp = json.loads(httpResp.text)
 print(json.dumps(jsonResp['hits']['hits'][0]['_explanation'], indent=True))
 print("Explain for %s" % jsonResp['hits']['hits'][0]['_source']['title'])
@@ -232,4 +232,4 @@ query = {
     'explain': True
 }
 
-search(query)
+search('tmdb', query)

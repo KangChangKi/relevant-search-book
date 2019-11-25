@@ -44,9 +44,9 @@ def fill_index_bulk(bulkData):
 #     'explain': True
 # }
 
-def search(query, _print=True):
+def search(index_name, query, _print=True):
     headers = {"Content-Type": "application/json"}
-    httpResp = requests.get('http://localhost:9200/tmdb/_search', headers=headers, data=json.dumps(query))
+    httpResp = requests.get(f'http://localhost:9200/{index_name}/_search', headers=headers, data=json.dumps(query))
     
     if _print:
         searchHits = json.loads(httpResp.text)['hits']
@@ -56,9 +56,9 @@ def search(query, _print=True):
 
     return httpResp
 
-def explain(query):
+def explain(index_name, query):
     headers = {"Content-Type": "application/json"}
-    httpResp = requests.get('http://localhost:9200/tmdb/_validate/query?explain',
+    httpResp = requests.get(f'http://localhost:9200/{index_name}/_validate/query?explain',
                     headers=headers, data=json.dumps(query))
     pprint(json.loads(httpResp.text))
     
