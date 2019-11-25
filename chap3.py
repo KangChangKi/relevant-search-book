@@ -3,7 +3,7 @@ from helpers import *
 # you'll need to have an API key for TMDB
 # to run these examples,
 # run export TMDB_API_KEY=<YourAPIKey>
-tmdb_api_key = os.environ["TMDB_API_KEY"]
+tmdb_api_key = os.environ["TMDB_API_KEY"] if 'TMDB_API_KEY' in os.environ else 'XXX'
 
 # Setup tmdb as its own session, caching requests
 # (we only want to cache tmdb, not elasticsearch)
