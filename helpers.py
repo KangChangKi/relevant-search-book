@@ -65,6 +65,7 @@ def explain(query):
 # query = {"field":"title", "text": "Fire with Fire"}
 
 def analyze(index_name, query):
+    headers = {"Content-Type": "application/json"}
     resp = requests.get(f'http://localhost:9200/{index_name}/_analyze?format=yaml', 
                         headers=headers, data=json.dumps(query))
     print(resp.text)
