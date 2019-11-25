@@ -181,8 +181,7 @@ analyze('tmdb', query)
 
 fill_index_bulk(bulkMovies)
 
-resp = requests.get('http://localhost:9200/tmdb/_refresh')
-print(resp.text)
+refresh('tmdb')
 sleep(1)
 
 # Search again
@@ -204,7 +203,7 @@ search(query)
 ## 2.4.1	Decomposing Relevance Score With Lucene’s Explain
 
 query['explain'] = True
-httpResp = search(query, print=False)
+httpResp = search(query, _print=False)
 jsonResp = json.loads(httpResp.text)
 print(json.dumps(jsonResp['hits']['hits'][0]['_explanation'], indent=True))
 print("Explain for %s" % jsonResp['hits']['hits'][0]['_source']['title'])
