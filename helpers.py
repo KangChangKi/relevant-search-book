@@ -44,11 +44,11 @@ def fill_index_bulk(bulkData):
 #     'explain': True
 # }
 
-def search(query, print=True):
+def search(query, _print=True):
     headers = {"Content-Type": "application/json"}
     httpResp = requests.get('http://localhost:9200/tmdb/_search', headers=headers, data=json.dumps(query))
     
-    if print:
+    if _print:
         searchHits = json.loads(httpResp.text)['hits']
         print("Num\tRelevance Score\t\tMovie Title\t\tOverview")
         for idx, hit in enumerate(searchHits['hits']):
