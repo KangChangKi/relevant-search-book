@@ -56,6 +56,12 @@ def search(query, _print=True):
 
     return httpResp
 
+def explain(query):
+    headers = {"Content-Type": "application/json"}
+    httpResp = requests.get('http://localhost:9200/tmdb/_validate/query?explain',
+                    headers=headers, data=json.dumps(query))
+    pprint(json.loads(httpResp.text))
+    
 # query = {"field":"title", "text": "Fire with Fire"}
 
 def analyze(index_name, query):
